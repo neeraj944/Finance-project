@@ -1,43 +1,11 @@
-# Cash Flow Forecasting Project
+Finance Management System
 
-This is a Django-based personal finance and cash flow forecasting project with:
-- Transaction, receivable, and payable tracking
-- Dashboard and alerts
-- ML-based forecasting utilities
-- Tailwind CSS tooling for frontend styling
+This project is a Finance Management System developed using Django that helps manage and organize financial activities such as income expenses and customer or client details. It provides a structured way to track financial transactions maintain records and monitor cash flow efficiently.
 
-## Project Location
+The system allows users to add update and manage financial data along with customer information and voucher generation. All data is stored in a structured database which enables easy retrieval analysis and reporting of financial activities.
 
-The GitHub-ready repository root is this folder:
+In addition to core finance functionalities the project integrates a machine learning module for predictive analysis. Historical financial data is used to train models that can identify patterns and generate insights such as future expense estimation and spending trends.
 
-`finance_project/finance_project/cash_flow`
+The machine learning component includes data preprocessing feature selection and model training using Python libraries such as Pandas NumPy and Scikit learn. Supervised learning algorithms such as Linear Regression Decision Tree and Random Forest are used to build prediction models. These models analyze past financial records to provide meaningful predictions and support data driven decision making.
 
-## Quick Start
-
-1. Create and activate a Python virtual environment.
-2. Install Python dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-3. Install frontend dependencies:
-
-```bash
-npm install
-```
-
-4. Run Django migrations:
-
-```bash
-python manage.py migrate
-```
-
-5. Start the server:
-
-```bash
-python manage.py runserver
-```
-
-## Notes
-
-- `db.sqlite3` and `node_modules` are intentionally ignored from Git.
+The project demonstrates practical implementation of backend development using Django database management and the integration of machine learning models into a real world application. It highlights the ability to combine web development with data analytics and predictive modeling.
