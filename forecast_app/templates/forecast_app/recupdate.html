@@ -1,0 +1,40 @@
+{% extends 'forecast_app/base.html' %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-bold text-gray-800">Update Receivable</h2>
+    <a href="{% url 'rectable' %}" class="px-4 py-2 bg-gray-700 text-white rounded-lg">← Back</a>
+</div>
+
+<div class="flex justify-center">
+    <div class="w-full max-w-xl bg-white rounded-xl shadow-md p-8">
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            <input class="w-full border rounded-lg px-3 py-2" name="party_name" value="{{ recer.party_name }}">
+            <input class="w-full border rounded-lg px-3 py-2" type="number" name="amount" value="{{ recer.amount }}">
+            <input class="w-full border rounded-lg px-3 py-2" type="date" name="due_date" value="{{ recer.due_date }}">
+            <input class="w-full border rounded-lg px-3 py-2" name="description" value="{{ recer.description }}">
+            <label class="flex items-center gap-2 mt-2">
+    <input type="checkbox"
+           name="is_received"
+           class="w-4 h-4"
+           {% if recer.is_received %}checked{% endif %}>
+    Mark as Received
+</label>
+
+            <input class="w-full border rounded-lg px-3 py-2" type="date" name="received_date" value="{{ recer.received_date }}">
+
+            <div class="flex justify-end gap-3 pt-4">
+                <a href="{% url 'rectable' %}" class="px-5 py-2 bg-gray-200 rounded-lg">Cancel</a>
+                <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-lg">
+                    Update
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

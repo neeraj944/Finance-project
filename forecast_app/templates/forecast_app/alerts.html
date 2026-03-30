@@ -1,0 +1,87 @@
+{% extends 'forecast_app/base.html' %}
+{% load humanize %}
+{% block content %}
+
+<div class="mb-8">
+    <h2 class="text-3xl font-bold text-gray-800">Pending Financial Actions</h2>
+    <p class="text-gray-500 mt-1">
+        Alerts are generated from pending receivables and payables.
+    </p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <p class="text-sm text-gray-500">Pending Receivables</p>
+        <p class="text-2xl font-bold text-green-600 mt-1">{{ pending_receivable_count }}</p>
+        <p class="text-xs text-gray-500 mt-1">₹{{ pending_receivable_total|floatformat:2|intcomma }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <p class="text-sm text-gray-500">Pending Payables</p>
+        <p class="text-2xl font-bold text-red-600 mt-1">{{ pending_payable_count }}</p>
+        <p class="text-xs text-gray-500 mt-1">₹{{ pending_payable_total|floatformat:2|intcomma }}</p>
+    </div>
+
+</div>
+
+<div class="space-y-4">
+    {% for alert in financial_alerts %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="flex flex-col md:flex-row md:items-center gap-4">
+            <div class="shrink-0">
+                <div class="rounded-full {{ alert.icon_bg }} {{ alert.icon_text }} h-12 w-12 flex items-center justify-center">
+                    <i class="fas {{ alert.icon }} text-lg"></i>
+                </div>
+            </div>
+
+            <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h5 class="font-semibold text-gray-900">{{ alert.title }}</h5>
+                    <span class="px-2.5 py-1 text-xs font-semibold rounded-full {{ alert.badge_bg }} {{ alert.badge_text }}">
+                        {{ alert.status_label }}
+                    </span>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">{{ alert.message }}</p>
+                <p class="text-xs text-gray-500 mt-1">Due on {{ alert.due_date|date:"D, d M Y" }}</p>
+            </div>
+
+            <div class="md:text-right">
+                <p class="text-lg font-bold {{ alert.amount_text }}">
+                    ₹{{ alert.amount|floatformat:2|intcomma }}
+                </p>
+                <a href="{{ alert.action_url }}"
+                   class="inline-flex mt-2 px-4 py-2 rounded-lg text-sm font-medium text-white {% if alert.kind == 'payable' %}bg-red-600 hover:bg-red-700{% else %}bg-green-600 hover:bg-green-700{% endif %}">
+                    {{ alert.action_label }}
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-xl border border-gray-100 p-10 text-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/4436/4436481.png" width="80" class="mx-auto opacity-30" alt="No pending alerts">
+        <p class="mt-3 text-gray-500">All clear. No pending receivables or payables.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% if legacy_alerts %}
+<div class="mt-10">
+    <h3 class="text-lg font-semibold text-gray-700 mb-3">Saved Alerts</h3>
+    <div class="space-y-3">
+        {% for alert in legacy_alerts %}
+        <div class="bg-white rounded-lg border border-gray-100 p-4 flex items-start justify-between gap-4">
+            <div>
+                <p class="text-sm font-medium text-gray-800">{{ alert.message }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ alert.created_at|date:"D, d M Y, h:i A" }}</p>
+            </div>
+            <form action="{% url 'delete_alert' alert.id %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="text-xs text-gray-500 hover:text-gray-700">Dismiss</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

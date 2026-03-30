@@ -1,0 +1,1353 @@
+{% extends 'forecast_app/base.html' %}
+{% load humanize %}
+
+{% block title %}Dashboard | Cash Flow System{% endblock %}
+
+{% block extra_css %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --dash-bg: #f4f7fb;
+        --dash-ink: #0f172a;
+        --dash-muted: #5b6679;
+        --dash-card: rgba(255, 255, 255, 0.85);
+        --dash-border: rgba(138, 152, 181, 0.22);
+        --dash-income: #0ea5e9;
+        --dash-expense: #f43f5e;
+        --dash-positive: #15803d;
+        --dash-negative: #dc2626;
+        --dash-primary: #0f766e;
+        --dash-highlight: #f59e0b;
+        --dash-shadow: 0 18px 40px rgba(12, 20, 38, 0.08);
+    }
+
+    .dashboard-shell {
+        position: relative;
+        isolation: isolate;
+        font-family: "Public Sans", sans-serif;
+        color: var(--dash-ink);
+        background: linear-gradient(180deg, #f7fafc 0%, var(--dash-bg) 100%);
+        border: 1px solid #e4e9f3;
+        border-radius: 24px;
+        padding: 28px;
+        overflow: hidden;
+    }
+
+    .dashboard-shell::before,
+    .dashboard-shell::after {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        border-radius: 999px;
+        filter: blur(2px);
+    }
+
+    .dashboard-shell::before {
+        width: 260px;
+        height: 260px;
+        right: -90px;
+        top: -100px;
+        background: radial-gradient(circle at center, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 70%);
+    }
+
+    .dashboard-shell::after {
+        width: 280px;
+        height: 280px;
+        left: -110px;
+        bottom: -120px;
+        background: radial-gradient(circle at center, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0) 72%);
+    }
+
+    .dashboard-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 22px;
+        padding: 24px;
+        border-radius: 20px;
+        background: linear-gradient(125deg, #0f766e 0%, #155e75 52%, #075985 100%);
+        box-shadow: var(--dash-shadow);
+        color: #f8fafc;
+    }
+
+    .dashboard-hero h1 {
+        margin: 0 0 6px;
+        font-family: "Sora", sans-serif;
+        font-size: clamp(1.4rem, 2vw, 2rem);
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+    }
+
+    .dashboard-hero p {
+        margin: 0;
+        font-size: 0.94rem;
+        line-height: 1.5;
+        color: rgba(241, 245, 249, 0.9);
+        max-width: 520px;
+    }
+
+    .hero-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 10px;
+    }
+
+    .live-chip,
+    .date-chip {
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        backdrop-filter: blur(5px);
+    }
+
+    .live-chip {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.38);
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .live-pulse {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: #34d399;
+        box-shadow: 0 0 0 rgba(52, 211, 153, 0.6);
+        animation: pulse 1.8s infinite;
+    }
+
+    .date-chip {
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(15, 23, 42, 0.25);
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .kpi-card {
+        background: var(--dash-card);
+        border: 1px solid var(--dash-border);
+        border-radius: 16px;
+        padding: 14px 16px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .kpi-label {
+        margin: 0;
+        font-size: 0.76rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #65748b;
+        font-weight: 700;
+    }
+
+    .kpi-value {
+        margin: 7px 0 0;
+        font-family: "Sora", sans-serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+
+    .text-good { color: var(--dash-positive); }
+    .text-bad { color: var(--dash-negative); }
+
+    .board-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+        gap: 14px;
+    }
+
+    .card {
+        background: var(--dash-card);
+        border: 1px solid var(--dash-border);
+        border-radius: 18px;
+        box-shadow: 0 12px 25px rgba(17, 24, 39, 0.06);
+        padding: 18px;
+        backdrop-filter: blur(6px);
+    }
+
+    .card-title {
+        margin: 0 0 14px;
+        font-family: "Sora", sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+
+    .forecast-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: end;
+        margin-bottom: 14px;
+    }
+
+    .forecast-form label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.8rem;
+        color: var(--dash-muted);
+        font-weight: 600;
+    }
+
+    .forecast-form input {
+        width: 100%;
+        border: 1px solid #c9d4e5;
+        border-radius: 12px;
+        padding: 10px 11px;
+        background: #ffffff;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #0f172a;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .forecast-form input:focus {
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+    }
+
+    .run-forecast-btn {
+        border: none;
+        border-radius: 12px;
+        padding: 10px 16px;
+        color: #ffffff;
+        background: linear-gradient(135deg, #0369a1 0%, #0f766e 100%);
+        font-size: 0.88rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        box-shadow: 0 8px 18px rgba(15, 118, 110, 0.24);
+        min-width: 168px;
+    }
+
+    .run-forecast-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 22px rgba(15, 118, 110, 0.3);
+    }
+
+    .run-forecast-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .forecast-status {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .prediction-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .prediction-card {
+        border-radius: 14px;
+        padding: 13px;
+        border: 1px solid #d8e3f2;
+        background: #ffffff;
+    }
+
+    .prediction-label {
+        margin: 0;
+        font-size: 0.73rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .prediction-value {
+        margin: 8px 0 3px;
+        font-family: "Sora", sans-serif;
+        font-size: 1.1rem;
+        letter-spacing: -0.01em;
+    }
+
+    .prediction-note {
+        margin: 0;
+        font-size: 0.77rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .income-tone { color: var(--dash-income); }
+    .expense-tone { color: var(--dash-expense); }
+
+    .net-positive { color: var(--dash-positive); }
+    .net-negative { color: var(--dash-negative); }
+    .net-neutral { color: #64748b; }
+
+    .chart-wrap {
+        height: 320px;
+        margin-top: 4px;
+        position: relative;
+    }
+
+    .trend-fallback {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 4px;
+        display: grid;
+        gap: 9px;
+    }
+
+    .trend-fallback-row {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .trend-fallback-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .trend-fallback-bars {
+        display: grid;
+        gap: 5px;
+    }
+
+    .trend-bar-track {
+        width: 100%;
+        height: 7px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+    }
+
+    .trend-bar-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        min-width: 2px;
+    }
+
+    .trend-bar-fill.income {
+        background: linear-gradient(90deg, #0284c7, #0ea5e9);
+    }
+
+    .trend-bar-fill.expense {
+        background: linear-gradient(90deg, #e11d48, #f43f5e);
+    }
+
+    .trend-fallback-note {
+        margin: 0;
+        font-size: 0.76rem;
+        color: #64748b;
+        font-style: italic;
+    }
+
+    .insight-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .insight-block {
+        border: 1px solid #dae4f3;
+        border-radius: 13px;
+        padding: 13px;
+        background: #ffffff;
+    }
+
+    .insight-heading {
+        margin: 0 0 8px;
+        font-size: 0.88rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .insight-heading.income { color: #0369a1; }
+    .insight-heading.expense { color: #be123c; }
+
+    .insight-label {
+        margin: 10px 0 6px;
+        font-size: 0.76rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+    }
+
+    .insight-copy {
+        margin: 0;
+        font-size: 0.87rem;
+        color: #334155;
+        line-height: 1.55;
+    }
+
+    .insight-list {
+        margin: 8px 0 0;
+        padding-left: 16px;
+        display: grid;
+        gap: 5px;
+        font-size: 0.83rem;
+        color: #334155;
+        line-height: 1.4;
+    }
+
+    .analysis-grid {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        gap: 14px;
+        align-items: start;
+    }
+
+    .category-values-card,
+    .insight-card {
+        height: fit-content;
+    }
+
+    .category-values-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .category-values-block {
+        border: 1px solid #dae4f3;
+        border-radius: 13px;
+        padding: 11px;
+        background: #ffffff;
+    }
+
+    .category-values-heading {
+        margin: 0 0 10px;
+        font-size: 0.83rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 800;
+    }
+
+    .category-values-heading.income { color: #0369a1; }
+    .category-values-heading.expense { color: #be123c; }
+
+    .category-values-total {
+        margin: 10px 0 0;
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+    }
+
+    .category-values-total.income { color: #0369a1; }
+    .category-values-total.expense { color: #be123c; }
+
+    .category-values-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+        max-height: 290px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .category-values-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 7px 9px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+
+    .category-values-name {
+        color: #334155;
+        font-size: 0.83rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .category-values-amount {
+        font-size: 0.83rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .category-values-amount.income { color: #0369a1; }
+    .category-values-amount.expense { color: #be123c; }
+
+    .category-values-empty {
+        margin: 0;
+        font-size: 0.83rem;
+        color: #64748b;
+        font-style: italic;
+    }
+
+    .activity-list,
+    .alert-list {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .activity-row,
+    .alert-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        border: 1px solid #dbe5f5;
+        border-radius: 12px;
+        padding: 10px 11px;
+        background: #ffffff;
+    }
+
+    .activity-title,
+    .alert-title {
+        margin: 0 0 4px;
+        font-size: 0.87rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .activity-meta,
+    .alert-meta {
+        margin: 0;
+        font-size: 0.77rem;
+        color: #64748b;
+    }
+
+    .activity-amount {
+        margin: 0;
+        font-family: "Sora", sans-serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .amount-positive { color: #15803d; }
+    .amount-negative { color: #dc2626; }
+
+    .severity-chip {
+        margin-top: 4px;
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 0.67rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: #f1f5f9;
+        color: #334155;
+    }
+
+    .severity-high { background: #fee2e2; color: #b91c1c; }
+    .severity-medium { background: #fef3c7; color: #92400e; }
+    .severity-low { background: #dcfce7; color: #166534; }
+
+    .empty-state {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.86rem;
+        font-style: italic;
+    }
+
+    .reveal {
+        opacity: 0;
+        transform: translateY(14px);
+        animation: rise 0.66s ease forwards;
+    }
+
+    .delay-1 { animation-delay: 0.08s; }
+    .delay-2 { animation-delay: 0.16s; }
+    .delay-3 { animation-delay: 0.24s; }
+    .delay-4 { animation-delay: 0.32s; }
+    .delay-5 { animation-delay: 0.4s; }
+
+    @keyframes rise {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+        70% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+    }
+
+    @media (max-width: 1260px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .board-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .analysis-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 840px) {
+        .dashboard-shell {
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        .dashboard-hero {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 18px;
+        }
+
+        .hero-meta {
+            align-items: flex-start;
+        }
+
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .forecast-form {
+            grid-template-columns: 1fr;
+        }
+
+        .run-forecast-btn {
+            width: 100%;
+        }
+
+        .prediction-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .insight-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .category-values-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .reveal, .live-pulse {
+            animation: none;
+            opacity: 1;
+            transform: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% now "Y" as now_year %}
+{% now "m" as now_month %}
+<div class="dashboard-shell">
+    <section class="dashboard-hero reveal">
+        <div>
+            <h1>FINANCE 💸</h1>
+           
+        </div>
+       
+    </section>
+
+    <section class="kpi-grid">
+        <article class="kpi-card reveal delay-1">
+            <p class="kpi-label">Current Balance</p>
+            <h2 class="kpi-value {% if current_balance >= 0 %}text-good{% else %}text-bad{% endif %}">
+                ₹{{ current_balance|default:"0.00"|floatformat:2|intcomma }}
+            </h2>
+        </article>
+    </section>
+
+    <div class="board-grid">
+        <div class="card reveal delay-2">
+            <h3 class="card-title">AI Forecast </h3>
+            <form id="predictionForm" class="forecast-form">
+                <div>
+                    <label for="target_month">Prediction Month</label>
+                    <input
+                        type="month"
+                        id="target_month"
+                        min="2020-01"
+                        value="{% if forecast.target_year and forecast.target_month %}{{ forecast.target_year }}-{% if forecast.target_month < 10 %}0{% endif %}{{ forecast.target_month }}{% else %}{{ now_year }}-{{ now_month }}{% endif %}"
+                    >
+                </div>
+                <button id="runForecastBtn" type="submit" class="run-forecast-btn">
+                    Run AI Forecast
+                </button>
+            </form>
+            <p class="forecast-status" id="forecast_status">Model ready for prediction.</p>
+
+            <div class="prediction-grid">
+                <article class="prediction-card">
+                    <p class="prediction-label">Predicted Income</p>
+                    <h4 id="pred_income" class="prediction-value income-tone">
+                        --
+                    </h4>
+                    <p id="lbl_income" class="prediction-note">AI estimate</p>
+                </article>
+                <article class="prediction-card">
+                    <p class="prediction-label">Predicted Expense</p>
+                    <h4 id="pred_expense" class="prediction-value expense-tone">
+                        --
+                    </h4>
+                    <p id="lbl_expense" class="prediction-note">AI estimate</p>
+                </article>
+                <article class="prediction-card">
+                    <p class="prediction-label">Net Cash</p>
+                    <h4 id="pred_net" class="prediction-value net-neutral">
+                        --
+                    </h4>
+                    <p class="prediction-note">Projected surplus or deficit</p>
+                </article>
+            </div>
+        </div>
+
+        <div class="card reveal delay-3">
+            <h3 class="card-title">AI Category Value Plot</h3>
+            <div class="chart-wrap">
+                <canvas id="categoryChart"></canvas>
+                <div id="categoryFallback" class="trend-fallback" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="analysis-grid">
+            <div class="card reveal delay-4 category-values-card">
+                <h3 class="card-title">Predicted Category Values</h3>
+                <div class="category-values-grid">
+                    <div class="category-values-block">
+                        <h4 class="category-values-heading income">Income Categories</h4>
+                        <ul id="income_category_values_list" class="category-values-list">
+                            <li class="category-values-empty">Run AI Forecast to view predicted income category values.</li>
+                        </ul>
+                        <p id="income_category_total" class="category-values-total income">Total: --</p>
+                    </div>
+                    <div class="category-values-block">
+                        <h4 class="category-values-heading expense">Expense Categories</h4>
+                        <ul id="expense_category_values_list" class="category-values-list">
+                            <li class="category-values-empty">Run AI Forecast to view predicted expense category values.</li>
+                        </ul>
+                        <p id="expense_category_total" class="category-values-total expense">Total: --</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card reveal delay-5 insight-card">
+                <h3 class="card-title">AI Financial Insight</h3>
+                <div class="insight-grid">
+                    <div class="insight-block">
+                        <h4 class="insight-heading income">Income Insight</h4>
+                        <p id="income_insight_text" class="insight-copy">
+                            Run AI Forecast to generate income insight.
+                        </p>
+                        <p class="insight-label">Suggestion</p>
+                        <p id="income_suggestion_text" class="insight-copy">
+                            Run AI Forecast to generate income suggestion.
+                        </p>
+                        <p class="insight-label">High-Value Categories</p>
+                        <ul id="income_high_items_list" class="insight-list">
+                            <li>Run AI Forecast to view high-value income categories.</li>
+                        </ul>
+                    </div>
+                    <div class="insight-block">
+                        <h4 class="insight-heading expense">Expense Insight</h4>
+                        <p id="expense_insight_text" class="insight-copy">
+                            Run AI Forecast to generate expense insight.
+                        </p>
+                        <p class="insight-label">Suggestion</p>
+                        <p id="expense_suggestion_text" class="insight-copy">
+                            Run AI Forecast to generate expense suggestion.
+                        </p>
+                        <p class="insight-label">High-Value Categories</p>
+                        <ul id="expense_high_items_list" class="insight-list">
+                            <li>Run AI Forecast to view high-value expense categories.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const FORECAST_MONTH_KEY = "cashflow.selectedForecastMonth";
+    const FORECAST_RESULT_KEY = "cashflow.latestForecastResult";
+    const FORECAST_READY_KEY = "cashflow.predictionTriggered";
+
+    function formatINR(amount, keepSign) {
+        const value = Number(amount || 0);
+        const output = keepSign ? value : Math.abs(value);
+        return new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            minimumFractionDigits: 2
+        }).format(output);
+    }
+
+    function monthLabelFromInput(monthStr) {
+        const dt = new Date(`${monthStr}-01T00:00:00`);
+        if (Number.isNaN(dt.getTime())) {
+            return "Selected month";
+        }
+        return dt.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    }
+
+    function isValidMonthString(monthStr) {
+        return /^\d{4}-(0[1-9]|1[0-2])$/.test(String(monthStr || ""));
+    }
+
+    function getMonthFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        const year = params.get("year");
+        const month = params.get("month");
+
+        if (!/^\d{4}$/.test(String(year || "")) || !/^\d{1,2}$/.test(String(month || ""))) {
+            return null;
+        }
+
+        return `${year}-${String(month).padStart(2, "0")}`;
+    }
+
+    function persistSelectedMonth(monthStr) {
+        if (!isValidMonthString(monthStr)) {
+            return;
+        }
+
+        try {
+            sessionStorage.setItem(FORECAST_MONTH_KEY, monthStr);
+        } catch (error) {
+            console.warn("Unable to persist forecast month in sessionStorage:", error);
+        }
+
+        const [year, month] = monthStr.split("-");
+        const url = new URL(window.location.href);
+        url.searchParams.set("year", year);
+        url.searchParams.set("month", String(parseInt(month, 10)));
+        window.history.replaceState({}, "", url.toString());
+    }
+
+    function getPreferredForecastMonth() {
+        const queryMonth = getMonthFromQuery();
+        if (isValidMonthString(queryMonth)) {
+            return queryMonth;
+        }
+
+        try {
+            const storedMonth = sessionStorage.getItem(FORECAST_MONTH_KEY);
+            return isValidMonthString(storedMonth) ? storedMonth : null;
+        } catch (error) {
+            console.warn("Unable to read forecast month from sessionStorage:", error);
+            return null;
+        }
+    }
+
+    function saveForecastResult(monthStr, data) {
+        if (!isValidMonthString(monthStr) || !data) {
+            return;
+        }
+
+        try {
+            sessionStorage.setItem(FORECAST_RESULT_KEY, JSON.stringify({
+                month: monthStr,
+                data: {
+                    income: data.income,
+                    expense: data.expense,
+                    net_cash: data.net_cash,
+                    income_categories: data.income_categories || {},
+                    expense_categories: data.expense_categories || {},
+                    ai_explanation: data.ai_explanation || []
+                }
+            }));
+            sessionStorage.setItem(FORECAST_READY_KEY, "1");
+        } catch (error) {
+            console.warn("Unable to persist forecast result in sessionStorage:", error);
+        }
+    }
+
+    function getStoredForecastResult() {
+        try {
+            const raw = sessionStorage.getItem(FORECAST_RESULT_KEY);
+            if (!raw) {
+                return null;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!parsed || !isValidMonthString(parsed.month) || typeof parsed.data !== "object" || parsed.data === null) {
+                return null;
+            }
+
+            return parsed;
+        } catch (error) {
+            console.warn("Unable to read forecast result from sessionStorage:", error);
+            return null;
+        }
+    }
+
+    function isReloadNavigation() {
+        try {
+            const entries = performance.getEntriesByType
+                ? performance.getEntriesByType("navigation")
+                : [];
+            if (entries && entries.length > 0) {
+                return entries[0].type === "reload";
+            }
+            if (performance.navigation) {
+                return performance.navigation.type === 1;
+            }
+        } catch (error) {
+            console.warn("Unable to detect navigation type:", error);
+        }
+        return false;
+    }
+
+    function setPredictionLabels(monthStr) {
+        const label = `${monthLabelFromInput(monthStr)} (AI estimate)`;
+        document.getElementById("lbl_income").textContent = label;
+        document.getElementById("lbl_expense").textContent = label;
+    }
+
+    function setNetTone(netAmount) {
+        const netEl = document.getElementById("pred_net");
+        const parsed = Number(netAmount);
+        netEl.classList.remove("net-positive", "net-negative", "net-neutral");
+
+        if (Number.isNaN(parsed)) {
+            netEl.classList.add("net-neutral");
+            return;
+        }
+
+        netEl.classList.add(parsed >= 0 ? "net-positive" : "net-negative");
+    }
+
+    function renderExplanationWaiting() {
+        document.getElementById("income_insight_text").textContent = "Run AI Forecast to generate income insight.";
+        document.getElementById("income_suggestion_text").textContent = "Run AI Forecast to generate income suggestion.";
+        document.getElementById("expense_insight_text").textContent = "Run AI Forecast to generate expense insight.";
+        document.getElementById("expense_suggestion_text").textContent = "Run AI Forecast to generate expense suggestion.";
+        document.getElementById("income_high_items_list").innerHTML =
+            "<li>Run AI Forecast to view high-value income categories.</li>";
+        document.getElementById("expense_high_items_list").innerHTML =
+            "<li>Run AI Forecast to view high-value expense categories.</li>";
+    }
+
+    function renderHighValueItems(listId, items) {
+        const listNode = document.getElementById(listId);
+        if (!listNode) {
+            return;
+        }
+
+        listNode.innerHTML = "";
+
+        if (!Array.isArray(items) || !items.length) {
+            listNode.innerHTML = "<li>No high-value categories identified.</li>";
+            return;
+        }
+
+        items.forEach((item) => {
+            const li = document.createElement("li");
+            const category = item && item.category ? item.category : "Uncategorized";
+            const amount = Number(item && item.value ? item.value : 0);
+            li.textContent = `${category}: ${formatINR(amount, true)}`;
+            listNode.appendChild(li);
+        });
+    }
+
+    function renderExplanation(explanations) {
+        if (!explanations || typeof explanations !== "object" || Array.isArray(explanations)) {
+            renderExplanationWaiting();
+            return;
+        }
+
+        document.getElementById("income_insight_text").textContent =
+            explanations.income_insight || "No income insight available.";
+        document.getElementById("income_suggestion_text").textContent =
+            explanations.income_suggestion || "No income suggestion available.";
+        document.getElementById("expense_insight_text").textContent =
+            explanations.expense_insight || "No expense insight available.";
+        document.getElementById("expense_suggestion_text").textContent =
+            explanations.expense_suggestion || "No expense suggestion available.";
+        renderHighValueItems("income_high_items_list", explanations.income_high_items);
+        renderHighValueItems("expense_high_items_list", explanations.expense_high_items);
+    }
+
+    let categoryChartInstance = null;
+
+    function humanizeCategoryName(name) {
+        return String(name || "")
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, (ch) => ch.toUpperCase())
+            .trim();
+    }
+
+    function buildCategorySeries(incomeCategories, expenseCategories) {
+        const rows = [];
+
+        Object.entries(incomeCategories || {}).forEach(([name, value]) => {
+            const numericValue = Number(value || 0);
+            if (numericValue > 0) {
+                rows.push({
+                    label: humanizeCategoryName(name),
+                    value: numericValue,
+                    type: "income"
+                });
+            }
+        });
+
+        Object.entries(expenseCategories || {}).forEach(([name, value]) => {
+            const numericValue = Number(value || 0);
+            if (numericValue > 0) {
+                rows.push({
+                    label: humanizeCategoryName(name),
+                    value: numericValue,
+                    type: "expense"
+                });
+            }
+        });
+
+        return rows.sort((a, b) => b.value - a.value).slice(0, 12);
+    }
+
+    function renderCategoryFallback(rows, reason) {
+        const chartCanvas = document.getElementById("categoryChart");
+        const fallbackNode = document.getElementById("categoryFallback");
+        if (!fallbackNode || !chartCanvas) {
+            return;
+        }
+
+        chartCanvas.style.display = "none";
+        fallbackNode.style.display = "grid";
+
+        if (!rows.length) {
+            fallbackNode.innerHTML = "<p class=\"trend-fallback-note\">No category values available for this month.</p>";
+            return;
+        }
+
+        const maxValue = Math.max(...rows.map((row) => row.value), 1);
+        const rowsHtml = rows.map((row) => {
+            const barWidth = Math.max((row.value / maxValue) * 100, 2);
+            return `
+                <div class="trend-fallback-row">
+                    <div class="trend-fallback-label">${row.label}</div>
+                    <div class="trend-fallback-bars">
+                        <div class="trend-bar-track">
+                            <span class="trend-bar-fill ${row.type}" style="width: ${barWidth}%"></span>
+                        </div>
+                        <p class="trend-fallback-note">${row.type.toUpperCase()} • ${formatINR(row.value, true)}</p>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        const reasonHtml = reason ? `<p class="trend-fallback-note">${reason}</p>` : "";
+        fallbackNode.innerHTML = `${rowsHtml}${reasonHtml}`;
+    }
+
+    function renderCategoryWaitingState() {
+        if (categoryChartInstance) {
+            categoryChartInstance.destroy();
+            categoryChartInstance = null;
+        }
+
+        const chartCanvas = document.getElementById("categoryChart");
+        const fallbackNode = document.getElementById("categoryFallback");
+        if (!fallbackNode || !chartCanvas) {
+            return;
+        }
+
+        chartCanvas.style.display = "none";
+        fallbackNode.style.display = "grid";
+        fallbackNode.innerHTML = "<p class=\"trend-fallback-note\">Run AI Forecast to generate category plot.</p>";
+    }
+
+    function renderCategoryValuesWaiting() {
+        const incomeList = document.getElementById("income_category_values_list");
+        const expenseList = document.getElementById("expense_category_values_list");
+        const incomeTotal = document.getElementById("income_category_total");
+        const expenseTotal = document.getElementById("expense_category_total");
+        if (!incomeList || !expenseList) {
+            return;
+        }
+
+        if (incomeTotal) {
+            incomeTotal.textContent = "Total: --";
+        }
+        if (expenseTotal) {
+            expenseTotal.textContent = "Total: --";
+        }
+
+        incomeList.innerHTML = "<li class=\"category-values-empty\">Run AI Forecast to view predicted income category values.</li>";
+        expenseList.innerHTML = "<li class=\"category-values-empty\">Run AI Forecast to view predicted expense category values.</li>";
+    }
+
+    function renderCategoryValueList(listId, categoryMap, type) {
+        const listNode = document.getElementById(listId);
+        if (!listNode) {
+            return;
+        }
+
+        listNode.innerHTML = "";
+
+        const rows = Object.entries(categoryMap || {})
+            .map(([name, value]) => ({ name: humanizeCategoryName(name), value: Number(value || 0) }))
+            .filter((item) => item.value > 0)
+            .sort((a, b) => b.value - a.value);
+
+        if (!rows.length) {
+            listNode.innerHTML = "<li class=\"category-values-empty\">No predicted values available.</li>";
+            return;
+        }
+
+        rows.forEach((row) => {
+            const li = document.createElement("li");
+            li.className = "category-values-item";
+
+            const name = document.createElement("span");
+            name.className = "category-values-name";
+            name.textContent = row.name;
+
+            const amount = document.createElement("span");
+            amount.className = `category-values-amount ${type}`;
+            amount.textContent = formatINR(row.value, true);
+
+            li.appendChild(name);
+            li.appendChild(amount);
+            listNode.appendChild(li);
+        });
+    }
+
+    function renderCategoryValues(incomeCategories, expenseCategories) {
+        const incomeTotal = Object.values(incomeCategories || {}).reduce((sum, value) => sum + Math.max(Number(value || 0), 0), 0);
+        const expenseTotal = Object.values(expenseCategories || {}).reduce((sum, value) => sum + Math.max(Number(value || 0), 0), 0);
+
+        const incomeTotalNode = document.getElementById("income_category_total");
+        const expenseTotalNode = document.getElementById("expense_category_total");
+        if (incomeTotalNode) {
+            incomeTotalNode.textContent = `Total: ${formatINR(incomeTotal, true)}`;
+        }
+        if (expenseTotalNode) {
+            expenseTotalNode.textContent = `Total: ${formatINR(expenseTotal, true)}`;
+        }
+
+        renderCategoryValueList("income_category_values_list", incomeCategories, "income");
+        renderCategoryValueList("expense_category_values_list", expenseCategories, "expense");
+    }
+
+    function renderCategoryChart(incomeCategories, expenseCategories) {
+        const chartCanvas = document.getElementById("categoryChart");
+        const fallbackNode = document.getElementById("categoryFallback");
+        if (!chartCanvas || !fallbackNode) {
+            return;
+        }
+
+        const rows = buildCategorySeries(incomeCategories, expenseCategories);
+        if (!rows.length) {
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+                categoryChartInstance = null;
+            }
+            renderCategoryFallback(rows);
+            return;
+        }
+
+        if (typeof Chart === "undefined") {
+            renderCategoryFallback(rows, "Chart library unavailable, showing compact category bars.");
+            return;
+        }
+
+        const ctx = chartCanvas.getContext("2d");
+        if (!ctx) {
+            renderCategoryFallback(rows, "Unable to initialize chart canvas.");
+            return;
+        }
+
+        const labels = rows.map((row) => row.label);
+        const values = rows.map((row) => row.value);
+        const colors = rows.map((row) => row.type === "income" ? "rgba(2, 132, 199, 0.75)" : "rgba(225, 29, 72, 0.75)");
+        const borderColors = rows.map((row) => row.type === "income" ? "#0284c7" : "#e11d48");
+
+        try {
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+            }
+
+            fallbackNode.style.display = "none";
+            chartCanvas.style.display = "block";
+
+            categoryChartInstance = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Predicted Category Value",
+                            data: values,
+                            backgroundColor: colors,
+                            borderColor: borderColors,
+                            borderWidth: 1.4,
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: "y",
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const type = rows[context.dataIndex].type;
+                                    return `${type.toUpperCase()}: ${formatINR(context.parsed.x, true)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { color: "rgba(148, 163, 184, 0.18)" },
+                            ticks: {
+                                color: "#64748b",
+                                font: { family: "Public Sans", weight: "600" },
+                                callback: function(value) {
+                                    return formatINR(value, true);
+                                }
+                            }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: {
+                                color: "#475569",
+                                font: { family: "Public Sans", weight: "700" }
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("Category chart render failed:", error);
+            renderCategoryFallback(rows, "Interactive chart failed, showing compact category bars.");
+        }
+    }
+
+    async function updateForecast(monthStr) {
+        const btn = document.getElementById("runForecastBtn");
+        const status = document.getElementById("forecast_status");
+
+        btn.disabled = true;
+        btn.textContent = "Running Model...";
+        status.textContent = "Analyzing cash movement and category behavior...";
+
+        try {
+            const res = await fetch(`/api/predict-cashflow/?target=${monthStr}`);
+            if (!res.ok) {
+                throw new Error("Forecast request failed.");
+            }
+
+            const data = await res.json();
+
+            document.getElementById("pred_income").textContent = formatINR(data.income, false);
+            document.getElementById("pred_expense").textContent = formatINR(data.expense, false);
+            document.getElementById("pred_net").textContent = formatINR(data.net_cash, true);
+
+            setNetTone(data.net_cash);
+            setPredictionLabels(monthStr);
+            renderExplanation(data.ai_explanation);
+            renderCategoryChart(data.income_categories, data.expense_categories);
+            renderCategoryValues(data.income_categories, data.expense_categories);
+            persistSelectedMonth(monthStr);
+            saveForecastResult(monthStr, data);
+
+            status.textContent = `Prediction generated for ${monthLabelFromInput(monthStr)}.`;
+        } catch (error) {
+            console.error(error);
+            status.textContent = "Forecast failed. Please try again.";
+            document.getElementById("pred_net").textContent = "Execution Error";
+            document.getElementById("pred_net").classList.remove("net-positive");
+            document.getElementById("pred_net").classList.add("net-negative");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Run AI Forecast";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("predictionForm");
+        const monthInput = document.getElementById("target_month");
+        const preferredMonth = getPreferredForecastMonth();
+        const activeMonth = preferredMonth || monthInput.value;
+        let predictionTriggered = false;
+        let storedForecast = null;
+
+        try {
+            if (isReloadNavigation()) {
+                sessionStorage.removeItem(FORECAST_RESULT_KEY);
+                sessionStorage.removeItem(FORECAST_READY_KEY);
+            }
+            predictionTriggered = sessionStorage.getItem(FORECAST_READY_KEY) === "1";
+            storedForecast = predictionTriggered ? getStoredForecastResult() : null;
+        } catch (error) {
+            console.warn("Unable to access prediction session state:", error);
+        }
+
+        monthInput.value = activeMonth;
+        document.getElementById("pred_income").textContent = "--";
+        document.getElementById("pred_expense").textContent = "--";
+        document.getElementById("pred_net").textContent = "--";
+        document.getElementById("forecast_status").textContent = "Select month and click Run AI Forecast.";
+
+        setPredictionLabels(monthInput.value);
+        setNetTone(NaN);
+        renderExplanationWaiting();
+        renderCategoryWaitingState();
+        renderCategoryValuesWaiting();
+
+        if (predictionTriggered && storedForecast && storedForecast.month === activeMonth) {
+            const saved = storedForecast.data;
+            document.getElementById("pred_income").textContent = formatINR(saved.income, false);
+            document.getElementById("pred_expense").textContent = formatINR(saved.expense, false);
+            document.getElementById("pred_net").textContent = formatINR(saved.net_cash, true);
+            setNetTone(saved.net_cash);
+            renderExplanation(saved.ai_explanation || []);
+            renderCategoryChart(saved.income_categories || {}, saved.expense_categories || {});
+            renderCategoryValues(saved.income_categories || {}, saved.expense_categories || {});
+            document.getElementById("forecast_status").textContent = `Loaded saved forecast for ${monthLabelFromInput(activeMonth)}.`;
+        }
+
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            updateForecast(monthInput.value);
+        });
+    });
+</script>
+{% endblock %}

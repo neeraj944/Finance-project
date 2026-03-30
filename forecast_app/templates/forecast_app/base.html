@@ -1,0 +1,308 @@
+<!-- ============================================================================ -->
+<!-- templates/cashflow/base.html - Base Template -->
+<!-- ============================================================================ -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cash Flow System{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <link rel="stylesheet" href="{% static 'css/output.css' %}">
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js for Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --sb-bg-1: #f8fafc;
+            --sb-bg-2: #eff6ff;
+            --sb-border: #d7e0ea;
+            --sb-ink: #1e293b;
+            --sb-muted: #64748b;
+            --sb-card: #ffffff;
+            --sb-accent-1: #0f766e;
+            --sb-accent-2: #0ea5a4;
+            --sb-danger: #dc2626;
+        }
+
+        .app-shell {
+            background: linear-gradient(180deg, #f3f6fb 0%, #eef2f7 100%);
+        }
+
+        .app-sidebar {
+            background: linear-gradient(180deg, var(--sb-bg-1) 0%, var(--sb-bg-2) 100%);
+            border-right: 1px solid var(--sb-border);
+            box-shadow: 8px 0 28px rgba(15, 23, 42, 0.06);
+        }
+
+        .sidebar-inner {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 18px 14px 14px;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid #d9e4f3;
+            border-radius: 16px;
+            background: var(--sb-card);
+            padding: 14px 12px;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--sb-accent-1) 0%, var(--sb-accent-2) 100%);
+            color: #f0fdfa;
+            font-size: 1rem;
+        }
+
+        .brand-title {
+            margin: 0;
+            color: var(--sb-ink);
+            font-size: 1.36rem;
+            line-height: 1.12;
+            letter-spacing: -0.02em;
+            font-weight: 800;
+        }
+
+        .brand-subtitle {
+            margin: 2px 0 0;
+            color: var(--sb-muted);
+            font-size: 0.74rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .sidebar-user {
+            margin-top: 14px;
+            border: 1px solid #d9e4f3;
+            border-radius: 14px;
+            background: var(--sb-card);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 1rem;
+        }
+
+        .user-label {
+            margin: 0;
+            color: var(--sb-muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+        }
+
+        .user-name {
+            margin: 1px 0 0;
+            color: #0f172a;
+            font-size: 1.1rem;
+            line-height: 1.2;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            overflow-wrap: anywhere;
+        }
+
+        .sidebar-nav {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            border-radius: 14px;
+            padding: 10px 12px;
+            border: 1px solid transparent;
+            color: var(--sb-ink);
+            font-weight: 700;
+            transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .sidebar-link:hover {
+            border-color: #d9e4f3;
+            background: rgba(255, 255, 255, 0.85);
+            transform: translateX(1px);
+        }
+
+        .sidebar-link-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: #e2e8f0;
+            color: #334155;
+            font-size: 0.9rem;
+            flex: 0 0 30px;
+        }
+
+        .sidebar-link-label {
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+
+        .sidebar-active {
+            background: linear-gradient(135deg, var(--sb-accent-1) 0%, var(--sb-accent-2) 100%);
+            border-color: rgba(13, 148, 136, 0.55);
+            box-shadow: 0 10px 18px rgba(15, 118, 110, 0.25);
+            color: #f0fdfa;
+        }
+
+        .sidebar-active .sidebar-link-icon {
+            background: rgba(240, 253, 250, 0.25);
+            color: #f0fdfa;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 14px;
+            border-top: 1px solid var(--sb-border);
+        }
+
+        .logout-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 12px;
+            padding: 10px 12px;
+            border: 1px solid #fca5a5;
+            background: #fff5f5;
+            color: var(--sb-danger);
+            font-weight: 700;
+            transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            background: var(--sb-danger);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+{% block bar %}
+<body class="app-shell">
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+         
+        <aside class="app-sidebar fixed left-0 top-0 h-full w-64 z-10">
+            <div class="sidebar-inner">
+                <div class="sidebar-brand">
+                    <div class="brand-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <h1 class="brand-title">Finance System</h1>
+                        <p class="brand-subtitle"> Workspace</p>
+                    </div>
+                </div>
+
+                <div class="sidebar-user">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <p class="user-label">Logged In As</p>
+                        <p class="user-name">{{ request.user.get_full_name|default:request.user.username }}</p>
+                    </div>
+                </div>
+
+                <nav class="sidebar-nav">
+                    <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}sidebar-active{% endif %}">
+                        <span class="sidebar-link-icon"><i class="fas fa-chart-pie"></i></span>
+                        <span class="sidebar-link-label">Dashboard</span>
+                    </a>
+
+                    <a href="{% url 'add_income' %}" class="sidebar-link {% if request.resolver_match.url_name == 'add_income' or request.resolver_match.url_name == 'income_list' or request.resolver_match.url_name == 'edit_income' %}sidebar-active{% endif %}">
+                        <span class="sidebar-link-icon"><i class="fas fa-arrow-trend-up"></i></span>
+                        <span class="sidebar-link-label">Income Entry</span>
+                    </a>
+
+                    <a href="{% url 'add_expense' %}" class="sidebar-link {% if request.resolver_match.url_name == 'add_expense' or request.resolver_match.url_name == 'expense_list' or request.resolver_match.url_name == 'edit_expense' %}sidebar-active{% endif %}">
+                        <span class="sidebar-link-icon"><i class="fas fa-arrow-trend-down"></i></span>
+                        <span class="sidebar-link-label">Expense Entry</span>
+                    </a>
+
+                    <a href="{% url 'rp_home' %}" class="sidebar-link {% if request.resolver_match.url_name == 'rp_home' or request.resolver_match.url_name == 'rectable' or request.resolver_match.url_name == 'recform' or request.resolver_match.url_name == 'recup' or request.resolver_match.url_name == 'paytable' or request.resolver_match.url_name == 'payform' or request.resolver_match.url_name == 'payup' %}sidebar-active{% endif %}">
+                        <span class="sidebar-link-icon"><i class="fas fa-list"></i></span>
+                        <span class="sidebar-link-label">Receivables/Payables</span>
+                    </a>
+
+                    <a href="{% url 'settable' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settable' or request.resolver_match.url_name == 'forecast_analytics' %}sidebar-active{% endif %}">
+                        <span class="sidebar-link-icon"><i class="fas fa-calendar"></i></span>
+                        <span class="sidebar-link-label">Forecast & Analytics</span>
+                    </a>
+
+                    <a href="{% url 'alerts' %}" class="sidebar-link {% if request.resolver_match.url_name == 'alerts' %}sidebar-active{% endif %}">
+                        <span class="sidebar-link-icon"><i class="fas fa-bell"></i></span>
+                        <span class="sidebar-link-label">Alerts & Notifications</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+        {% endblock %}
+
+        <!-- Main Content -->
+        <main class="ml-64 flex-1 p-8">
+            <!-- Messages -->
+            {% if messages %}
+                <div class="mb-6">
+                    {% for message in messages %}
+                        <div class="p-4 mb-3 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800{% elif message.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
