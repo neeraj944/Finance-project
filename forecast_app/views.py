@@ -5,7 +5,7 @@ from .models import Transaction, Category, PaymentMode, Receivable, Payable, Ale
 from django.db.models import Sum
 from django.http import JsonResponse, HttpResponse
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.utils import timezone
 from django.urls import reverse
 from django.contrib.auth import authenticate, login
@@ -25,6 +25,31 @@ def _is_admin_user(user):
 def _scope_queryset_for_user(queryset, user):
     # Shared mode: every authenticated user can access the same finance dataset.
     return queryset
+
+
+def _unique_by_name(queryset):
+    seen = set()
+    unique_items = []
+    for item in queryset.order_by('name', 'id'):
+        key = (item.name or '').strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_items.append(item)
+    return unique_items
+
+
+def _unique_category_options(user, category_type):
+    scoped_qs = _scope_queryset_for_user(
+        Category.objects.filter(category_type=category_type),
+        user
+    )
+    return _unique_by_name(scoped_qs)
+
+
+def _unique_payment_mode_options(user):
+    scoped_qs = _scope_queryset_for_user(PaymentMode.objects.all(), user)
+    return _unique_by_name(scoped_qs)
 
 
 # ────────────────────────────────────────────────────────────
@@ -123,18 +148,66 @@ def income_list(request):
 @login_required
 def add_income(request):
     if request.method == 'POST':
-        Transaction.objects.create(
-            user=request.user, transaction_type='income', 
-            amount=Decimal(request.POST.get('amount')),
-            category_id=request.POST.get('category'), date=request.POST.get('date')
+        amounts = request.POST.getlist('amount[]')
+        categories = request.POST.getlist('category[]')
+        payment_modes = request.POST.getlist('payment_mode[]')
+        dates = request.POST.getlist('date[]')
+        descriptions = request.POST.getlist('description[]')
+
+        category_scope = _scope_queryset_for_user(
+            Category.objects.filter(category_type='income'),
+            request.user
         )
-        messages.success(request, "Income added. Run 'Train Models' to update forecast.")
+        payment_mode_scope = _scope_queryset_for_user(
+            PaymentMode.objects.all(),
+            request.user
+        )
+
+        created_count = 0
+        row_count = min(len(amounts), len(categories), len(payment_modes), len(dates))
+
+        for i in range(row_count):
+            amount_raw = (amounts[i] or '').strip()
+            category_id = (categories[i] or '').strip()
+            payment_mode_id = (payment_modes[i] or '').strip()
+            date_raw = (dates[i] or '').strip()
+            description_raw = (descriptions[i] if i < len(descriptions) else '') or ''
+
+            if not (amount_raw and category_id and payment_mode_id and date_raw):
+                continue
+
+            category = category_scope.filter(id=category_id).first()
+            payment_mode = payment_mode_scope.filter(id=payment_mode_id).first()
+            if not category or not payment_mode:
+                continue
+
+            try:
+                amount_value = Decimal(amount_raw)
+            except (InvalidOperation, TypeError):
+                continue
+
+            Transaction.objects.create(
+                user=request.user,
+                transaction_type='income',
+                amount=amount_value,
+                category=category,
+                payment_mode=payment_mode,
+                date=date_raw,
+                description=description_raw.strip()
+            )
+            created_count += 1
+
+        if created_count:
+            messages.success(request, f"{created_count} income entr{'y' if created_count == 1 else 'ies'} added.")
+        else:
+            messages.error(request, "No valid income rows were submitted.")
+
         return redirect('income_list')
-    categories = _scope_queryset_for_user(
-        Category.objects.filter(category_type='income'),
-        request.user
-    ).order_by('name')
-    return render(request, 'forecast_app/add_income.html', {'categories': categories})
+
+    return render(request, 'forecast_app/add_income.html', {
+        'categories': _unique_category_options(request.user, 'income'),
+        'payment_modes': _unique_payment_mode_options(request.user),
+    })
 
 @login_required
 def edit_income(request, pk):
@@ -142,14 +215,12 @@ def edit_income(request, pk):
         _scope_queryset_for_user(Transaction.objects.filter(transaction_type='income'), request.user),
         pk=pk
     )
-    categories = _scope_queryset_for_user(
-        Category.objects.filter(category_type='income'),
-        request.user
-    ).order_by('name')
-    payment_modes = _scope_queryset_for_user(
-        PaymentMode.objects.all(),
-        request.user
-    ).order_by('name')
+    categories = _unique_category_options(request.user, 'income')
+    payment_modes = _unique_payment_mode_options(request.user)
+    if income.category and all(cat.id != income.category_id for cat in categories):
+        categories.insert(0, income.category)
+    if income.payment_mode and all(pm.id != income.payment_mode_id for pm in payment_modes):
+        payment_modes.insert(0, income.payment_mode)
 
     if request.method == 'POST':
         category = Category.objects.filter(
@@ -199,17 +270,66 @@ def expense_list(request):
 @login_required
 def add_expense(request):
     if request.method == 'POST':
-        Transaction.objects.create(
-            user=request.user, transaction_type='expense', 
-            amount=Decimal(request.POST.get('amount')),
-            category_id=request.POST.get('category'), date=request.POST.get('date')
+        amounts = request.POST.getlist('amount[]')
+        categories = request.POST.getlist('category[]')
+        payment_modes = request.POST.getlist('payment_mode[]')
+        dates = request.POST.getlist('date[]')
+        descriptions = request.POST.getlist('description[]')
+
+        category_scope = _scope_queryset_for_user(
+            Category.objects.filter(category_type='expense'),
+            request.user
         )
+        payment_mode_scope = _scope_queryset_for_user(
+            PaymentMode.objects.all(),
+            request.user
+        )
+
+        created_count = 0
+        row_count = min(len(amounts), len(categories), len(payment_modes), len(dates))
+
+        for i in range(row_count):
+            amount_raw = (amounts[i] or '').strip()
+            category_id = (categories[i] or '').strip()
+            payment_mode_id = (payment_modes[i] or '').strip()
+            date_raw = (dates[i] or '').strip()
+            description_raw = (descriptions[i] if i < len(descriptions) else '') or ''
+
+            if not (amount_raw and category_id and payment_mode_id and date_raw):
+                continue
+
+            category = category_scope.filter(id=category_id).first()
+            payment_mode = payment_mode_scope.filter(id=payment_mode_id).first()
+            if not category or not payment_mode:
+                continue
+
+            try:
+                amount_value = Decimal(amount_raw)
+            except (InvalidOperation, TypeError):
+                continue
+
+            Transaction.objects.create(
+                user=request.user,
+                transaction_type='expense',
+                amount=amount_value,
+                category=category,
+                payment_mode=payment_mode,
+                date=date_raw,
+                description=description_raw.strip()
+            )
+            created_count += 1
+
+        if created_count:
+            messages.success(request, f"{created_count} expense entr{'y' if created_count == 1 else 'ies'} added.")
+        else:
+            messages.error(request, "No valid expense rows were submitted.")
+
         return redirect('expense_list')
-    categories = _scope_queryset_for_user(
-        Category.objects.filter(category_type='expense'),
-        request.user
-    ).order_by('name')
-    return render(request, 'forecast_app/add_expense.html', {'categories': categories})
+
+    return render(request, 'forecast_app/add_expense.html', {
+        'categories': _unique_category_options(request.user, 'expense'),
+        'payment_modes': _unique_payment_mode_options(request.user),
+    })
 
 @login_required
 def edit_expense(request, pk):
@@ -217,14 +337,12 @@ def edit_expense(request, pk):
         _scope_queryset_for_user(Transaction.objects.filter(transaction_type='expense'), request.user),
         pk=pk
     )
-    categories = _scope_queryset_for_user(
-        Category.objects.filter(category_type='expense'),
-        request.user
-    ).order_by('name')
-    payment_modes = _scope_queryset_for_user(
-        PaymentMode.objects.all(),
-        request.user
-    ).order_by('name')
+    categories = _unique_category_options(request.user, 'expense')
+    payment_modes = _unique_payment_mode_options(request.user)
+    if exp.category and all(cat.id != exp.category_id for cat in categories):
+        categories.insert(0, exp.category)
+    if exp.payment_mode and all(pm.id != exp.payment_mode_id for pm in payment_modes):
+        payment_modes.insert(0, exp.payment_mode)
 
     if request.method == 'POST':
         category = Category.objects.filter(
