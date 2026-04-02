@@ -45,24 +45,36 @@ from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Transaction
+from .models import Transaction, Receivable, Payable
 
 
 # ===============================
 # CURRENT BALANCE
 # ===============================
 def calculate_current_balance(user):
-    income = Transaction.objects.filter(
-        user=user,
+    # Shared mode: balance is computed from all available finance records.
+    transaction_scope = Transaction.objects.all()
+    receivable_scope = Receivable.objects.all()
+    payable_scope = Payable.objects.all()
+
+    income = transaction_scope.filter(
         transaction_type='income'
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    expense = Transaction.objects.filter(
-        user=user,
+    expense = transaction_scope.filter(
         transaction_type='expense'
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    return income - expense
+    # Include realized cash movement from receivables/payables too.
+    received_receivables = receivable_scope.filter(
+        is_received=True
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    paid_payables = payable_scope.filter(
+        is_paid=True
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    return (income + received_receivables) - (expense + paid_payables)
 
 
 # ===============================

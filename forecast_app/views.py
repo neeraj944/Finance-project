@@ -17,6 +17,16 @@ import subprocess
 import os
 from ml_engine.predictor import FinancePredictor
 
+
+def _is_admin_user(user):
+    return user.is_staff or user.is_superuser
+
+
+def _scope_queryset_for_user(queryset, user):
+    # Shared mode: every authenticated user can access the same finance dataset.
+    return queryset
+
+
 # ────────────────────────────────────────────────────────────
 # DASHBOARD & API 
 # ────────────────────────────────────────────────────────────
@@ -29,14 +39,15 @@ def dashboard(request):
 
     current_balance = calculate_current_balance(request.user) or Decimal('0.00')
     first_day_month = today.replace(day=1)
+    transaction_scope = _scope_queryset_for_user(Transaction.objects.all(), request.user)
 
     # Current Month Totals
-    monthly_income = Transaction.objects.filter(
-        user=request.user, transaction_type='income', date__gte=first_day_month
+    monthly_income = transaction_scope.filter(
+        transaction_type='income', date__gte=first_day_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    monthly_expense = Transaction.objects.filter(
-        user=request.user, transaction_type='expense', date__gte=first_day_month
+    monthly_expense = transaction_scope.filter(
+        transaction_type='expense', date__gte=first_day_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     # Keep dashboard forecast blank on first load.
@@ -58,7 +69,7 @@ def dashboard(request):
         'monthly_expense': monthly_expense,
         'monthly_net': monthly_income - monthly_expense,
         'forecast': forecast,
-        'recent_transactions': Transaction.objects.filter(user=request.user).order_by('-date')[:10],
+        'recent_transactions': transaction_scope.order_by('-date')[:10],
         'alerts': Alert.objects.filter(user=request.user).order_by('-created_at')[:5],
     }
     return render(request, 'forecast_app/dashboard.html', context)
@@ -104,7 +115,10 @@ def predict_cashflow_api(request):
 
 @login_required
 def income_list(request):
-    incomes = Transaction.objects.filter(user=request.user, transaction_type='income').order_by('-date')
+    incomes = _scope_queryset_for_user(
+        Transaction.objects.filter(transaction_type='income'),
+        request.user
+    ).order_by('-date')
     return render(request, 'forecast_app/income_list.html', {'incomes': incomes})
 
 @login_required
@@ -117,27 +131,33 @@ def add_income(request):
         )
         messages.success(request, "Income added. Run 'Train Models' to update forecast.")
         return redirect('income_list')
-    return render(request, 'forecast_app/add_income.html', {'categories': Category.objects.filter(user=request.user, category_type='income')})
+    categories = _scope_queryset_for_user(
+        Category.objects.filter(category_type='income'),
+        request.user
+    ).order_by('name')
+    return render(request, 'forecast_app/add_income.html', {'categories': categories})
 
 @login_required
 def edit_income(request, pk):
-    income = get_object_or_404(Transaction, pk=pk, user=request.user, transaction_type='income')
-    categories = Category.objects.filter(
-        user=request.user,
-        category_type='income'
+    income = get_object_or_404(
+        _scope_queryset_for_user(Transaction.objects.filter(transaction_type='income'), request.user),
+        pk=pk
+    )
+    categories = _scope_queryset_for_user(
+        Category.objects.filter(category_type='income'),
+        request.user
     ).order_by('name')
-    payment_modes = PaymentMode.objects.filter(user=request.user).order_by('name')
+    payment_modes = _scope_queryset_for_user(
+        PaymentMode.objects.all(),
+        request.user
+    ).order_by('name')
 
     if request.method == 'POST':
         category = Category.objects.filter(
             id=request.POST.get('category'),
-            user=request.user,
             category_type='income'
         ).first()
-        payment_mode = PaymentMode.objects.filter(
-            id=request.POST.get('payment_mode'),
-            user=request.user
-        ).first()
+        payment_mode = PaymentMode.objects.filter(id=request.POST.get('payment_mode')).first()
 
         if not category or not payment_mode:
             messages.error(request, "Please select a valid category and payment mode.")
@@ -163,12 +183,18 @@ def edit_income(request, pk):
 
 @login_required
 def delete_income(request, pk):
-    get_object_or_404(Transaction, pk=pk, user=request.user).delete()
+    get_object_or_404(
+        _scope_queryset_for_user(Transaction.objects.filter(transaction_type='income'), request.user),
+        pk=pk
+    ).delete()
     return redirect('income_list')
 
 @login_required
 def expense_list(request):
-    expenses = Transaction.objects.filter(user=request.user, transaction_type='expense').order_by('-date')
+    expenses = _scope_queryset_for_user(
+        Transaction.objects.filter(transaction_type='expense'),
+        request.user
+    ).order_by('-date')
     return render(request, 'forecast_app/expense_list.html', {'expenses': expenses})
 
 @login_required
@@ -180,27 +206,33 @@ def add_expense(request):
             category_id=request.POST.get('category'), date=request.POST.get('date')
         )
         return redirect('expense_list')
-    return render(request, 'forecast_app/add_expense.html', {'categories': Category.objects.filter(user=request.user, category_type='expense')})
+    categories = _scope_queryset_for_user(
+        Category.objects.filter(category_type='expense'),
+        request.user
+    ).order_by('name')
+    return render(request, 'forecast_app/add_expense.html', {'categories': categories})
 
 @login_required
 def edit_expense(request, pk):
-    exp = get_object_or_404(Transaction, pk=pk, user=request.user, transaction_type='expense')
-    categories = Category.objects.filter(
-        user=request.user,
-        category_type='expense'
+    exp = get_object_or_404(
+        _scope_queryset_for_user(Transaction.objects.filter(transaction_type='expense'), request.user),
+        pk=pk
+    )
+    categories = _scope_queryset_for_user(
+        Category.objects.filter(category_type='expense'),
+        request.user
     ).order_by('name')
-    payment_modes = PaymentMode.objects.filter(user=request.user).order_by('name')
+    payment_modes = _scope_queryset_for_user(
+        PaymentMode.objects.all(),
+        request.user
+    ).order_by('name')
 
     if request.method == 'POST':
         category = Category.objects.filter(
             id=request.POST.get('category'),
-            user=request.user,
             category_type='expense'
         ).first()
-        payment_mode = PaymentMode.objects.filter(
-            id=request.POST.get('payment_mode'),
-            user=request.user
-        ).first()
+        payment_mode = PaymentMode.objects.filter(id=request.POST.get('payment_mode')).first()
 
         if not category or not payment_mode:
             messages.error(request, "Please select a valid category and payment mode.")
@@ -226,7 +258,10 @@ def edit_expense(request, pk):
 
 @login_required
 def delete_expense(request, pk):
-    get_object_or_404(Transaction, pk=pk, user=request.user).delete()
+    get_object_or_404(
+        _scope_queryset_for_user(Transaction.objects.filter(transaction_type='expense'), request.user),
+        pk=pk
+    ).delete()
     return redirect('expense_list')
 
 # ────────────────────────────────────────────────────────────
@@ -234,7 +269,31 @@ def delete_expense(request, pk):
 # ────────────────────────────────────────────────────────────
 
 @login_required
-def Rectable(request): return render(request, "forecast_app/rectable.html", {"recs": Receivable.objects.filter(user=request.user)})
+def Rectable(request):
+    receivable_scope = _scope_queryset_for_user(Receivable.objects.all(), request.user)
+    party = request.GET.get("party", "").strip()
+    due_date = request.GET.get("due_date", "").strip()
+
+    recs = receivable_scope
+    if party:
+        recs = recs.filter(party_name__icontains=party)
+    if due_date:
+        recs = recs.filter(due_date=due_date)
+
+    party_list = (
+        receivable_scope
+        .values_list("party_name", flat=True)
+        .distinct()
+        .order_by("party_name")
+    )
+
+    return render(request, "forecast_app/rectable.html", {
+        "recs": recs.order_by("-due_date", "-id"),
+        "party": party,
+        "due_date": due_date,
+        "party_list": party_list,
+        "is_admin_view": True,
+    })
 
 @login_required
 def Recform(request): return render(request, 'forecast_app/recform.html', {'form': ReceivableForm()})
@@ -248,17 +307,41 @@ def Recievable_form(request):
 
 @login_required
 def Recupdate(request, id):
-    r = get_object_or_404(Receivable, id=id, user=request.user)
+    r = get_object_or_404(_scope_queryset_for_user(Receivable.objects.all(), request.user), id=id)
     if request.method == "POST":
         f = ReceivableForm(request.POST, instance=r)
         if f.is_valid(): f.save(); return redirect("rectable")
     return render(request, 'forecast_app/recupdate.html', {'recer': r})
 
 @login_required
-def Recdelete(request, id): get_object_or_404(Receivable, id=id, user=request.user).delete(); return redirect("rectable")
+def Recdelete(request, id): get_object_or_404(_scope_queryset_for_user(Receivable.objects.all(), request.user), id=id).delete(); return redirect("rectable")
 
 @login_required
-def Paytable(request): return render(request, "forecast_app/paytable.html", {"pays": Payable.objects.filter(user=request.user)})
+def Paytable(request):
+    payable_scope = _scope_queryset_for_user(Payable.objects.all(), request.user)
+    party = request.GET.get("party", "").strip()
+    due_date = request.GET.get("due_date", "").strip()
+
+    pays = payable_scope
+    if party:
+        pays = pays.filter(party_name__icontains=party)
+    if due_date:
+        pays = pays.filter(due_date=due_date)
+
+    party_list = (
+        payable_scope
+        .values_list("party_name", flat=True)
+        .distinct()
+        .order_by("party_name")
+    )
+
+    return render(request, "forecast_app/paytable.html", {
+        "pays": pays.order_by("-due_date", "-id"),
+        "party": party,
+        "due_date": due_date,
+        "party_list": party_list,
+        "is_admin_view": True,
+    })
 
 @login_required
 def Payform(request): return render(request, 'forecast_app/payform.html', {'form': PayableForm()})
@@ -271,14 +354,14 @@ def Payable_form(request):
     return redirect("payform")
 @login_required
 def Payupdate(request, id):
-    p = get_object_or_404(Payable, id=id, user=request.user)
+    p = get_object_or_404(_scope_queryset_for_user(Payable.objects.all(), request.user), id=id)
     if request.method == "POST":
         f = PayableForm(request.POST, instance=p)
         if f.is_valid(): f.save(); return redirect("paytable")
     return render(request, 'forecast_app/payupdate.html', {'payer': p})
 
 @login_required
-def Paydelete(request, id): get_object_or_404(Payable, id=id, user=request.user).delete(); return redirect("paytable")
+def Paydelete(request, id): get_object_or_404(_scope_queryset_for_user(Payable.objects.all(), request.user), id=id).delete(); return redirect("paytable")
 
 @login_required
 def Settable(request): return render(request, 'forecast_app/settable.html', {'sets': Settings.objects.filter(user=request.user)})

@@ -32,12 +32,18 @@
             ← Back
         </a>
 
-        <a href="{% url 'recpy' %}"
+        <a href="{% url 'recform' %}"
            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
             + Add Receivable
         </a>
     </div>
 </div>
+
+{% if is_admin_view %}
+<div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+    Admin view enabled: showing receivables from all users.
+</div>
+{% endif %}
 <!-- Filters Card -->
 <div class="bg-white rounded-xl shadow-md p-5 mb-6">
   <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">

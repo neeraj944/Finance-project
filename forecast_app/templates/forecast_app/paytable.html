@@ -32,12 +32,18 @@
             ← Back
         </a>
 
-        <a href="{% url 'paypy' %}"
+        <a href="{% url 'payform' %}"
            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
             + Add Payable
         </a>
     </div>
 </div>
+
+{% if is_admin_view %}
+<div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+    Admin view enabled: showing payables from all users.
+</div>
+{% endif %}
 <!-- Filters Card -->
 <div class="bg-white rounded-xl shadow-md p-5 mb-6">
   <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -89,7 +95,7 @@
     <!-- Clear Button -->
     <div>
       <a
-        href="{% url 'rectable' %}"
+        href="{% url 'paytable' %}"
         class="block text-center px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
       >
         Clear
