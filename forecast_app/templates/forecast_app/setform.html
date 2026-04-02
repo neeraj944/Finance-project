@@ -18,7 +18,7 @@
 <div class="flex justify-center">
     <div class="w-full max-w-xl bg-white rounded-xl shadow-md p-8">
 
-        <form method="post" class="space-y-4">
+        <form method="post" action="{% url 'setpy' %}" class="space-y-4">
             {% csrf_token %}
 
             {% for field in form %}

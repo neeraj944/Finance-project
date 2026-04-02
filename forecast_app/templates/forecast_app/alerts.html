@@ -42,6 +42,7 @@
                     </span>
                 </div>
                 <p class="text-sm text-gray-600 mt-1">{{ alert.message }}</p>
+                <p class="text-xs text-gray-500 mt-1">Owner: {{ alert.owner }}</p>
                 <p class="text-xs text-gray-500 mt-1">Due on {{ alert.due_date|date:"D, d M Y" }}</p>
             </div>
 

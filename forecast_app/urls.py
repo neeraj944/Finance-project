@@ -38,7 +38,7 @@ urlpatterns = [
 
     # Settings & Auth
     path('sett/', views.Settable, name='settable'),
-    path('setform/', views.Setform, name='setfrom'),
+    path('setform/', views.Setform, name='setform'),
     path('setpy/', views.Settings_form, name='setpy'),
     path('setup/<int:id>/', views.Setupdate, name='setup'),
     path('setdl/<int:id>/', views.Setdelete, name='setdl'),

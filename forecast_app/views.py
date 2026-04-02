@@ -50,8 +50,7 @@ def dashboard(request):
         transaction_type='expense', date__gte=first_day_month
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    # Keep dashboard forecast blank on first load.
-    # Forecast values are filled only when user clicks "Run AI Forecast".
+    
     forecast = {
         'income': None,
         'expense': None,
@@ -403,14 +402,14 @@ def register_view(request):
 @login_required
 def alerts(request):
     today = timezone.localdate()
-    pending_receivables = Receivable.objects.filter(
-        user=request.user,
-        is_received=False
-    ).order_by('due_date')
-    pending_payables = Payable.objects.filter(
-        user=request.user,
-        is_paid=False
-    ).order_by('due_date')
+    pending_receivables = _scope_queryset_for_user(
+        Receivable.objects.filter(is_received=False),
+        request.user
+    ).select_related('user').order_by('due_date')
+    pending_payables = _scope_queryset_for_user(
+        Payable.objects.filter(is_paid=False),
+        request.user
+    ).select_related('user').order_by('due_date')
 
     def build_due_status(due_date):
         days_left = (due_date - today).days
@@ -454,6 +453,7 @@ def alerts(request):
             "kind": "receivable",
             "title": f"Pending receivable from {rec.party_name}",
             "message": "Follow up and collect the pending amount.",
+            "owner": rec.user.username,
             "amount": rec.amount,
             "due_date": rec.due_date,
             "status_label": due_status["label"],
@@ -474,6 +474,7 @@ def alerts(request):
             "kind": "payable",
             "title": f"Pending payable to {pay.party_name}",
             "message": "Schedule this payment to avoid delays or penalties.",
+            "owner": pay.user.username,
             "amount": pay.amount,
             "due_date": pay.due_date,
             "status_label": due_status["label"],

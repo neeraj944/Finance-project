@@ -184,14 +184,35 @@ from django.forms import ModelForm
 from .models import Settings
 
 class Settingsform(ModelForm):
+    FORECAST_DURATION_CHOICES = [
+        ("1_month", "1 Month"),
+        ("3_months", "3 Months"),
+        ("6_months", "6 Months"),
+        ("12_months", "12 Months"),
+    ]
+
+    forecast_duration = forms.ChoiceField(
+        choices=FORECAST_DURATION_CHOICES,
+        widget=forms.Select(attrs={
+            'class': TAILWIND_INPUT
+        })
+    )
+
     class Meta:
         model = Settings
         fields = ['forecast_duration', 'alert_threshold_amount']
         widgets = {
-            'forecast_duration': forms.Select(attrs={
-                'class': TAILWIND_INPUT
-            }),
             'alert_threshold_amount': forms.NumberInput(attrs={
                 'class': TAILWIND_INPUT
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        current_value = getattr(self.instance, "forecast_duration", None)
+        existing_values = {value for value, _ in self.fields['forecast_duration'].choices}
+        if current_value and current_value not in existing_values:
+            self.fields['forecast_duration'].choices = [
+                (current_value, current_value),
+                *self.fields['forecast_duration'].choices,
+            ]
